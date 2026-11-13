@@ -35,6 +35,10 @@
           "type": "integer",
           "description": "Current learning streak in days"
         },
+        "lastPracticeDate": {
+          "type": "string",
+          "description": "Most recent practice date in yyyy-MM-dd format for daily streak calculation"
+        },
         "completedNpcIds": {
           "type": "array",
           "description": "List of local NPC IDs whose street quest was completed"

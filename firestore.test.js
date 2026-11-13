@@ -28,6 +28,7 @@ function validProfile(uid) {
     preferredModel: "gemini-4-hydrogen",
     xp: 120,
     streakDays: 3,
+    lastPracticeDate: "2026-11-11",
     completedNpcIds: ["paris_camille"],
     createdAt: now,
     updatedAt: now,
@@ -90,6 +91,8 @@ test("Owner can create, read, and update their own UserProfile", async () => {
   await assertSucceeds(
     profileRef.update({
       xp: 240,
+      streakDays: 4,
+      lastPracticeDate: "2026-11-12",
       activeCityId: "tokyo",
       updatedAt: pastTimestamp(),
     })

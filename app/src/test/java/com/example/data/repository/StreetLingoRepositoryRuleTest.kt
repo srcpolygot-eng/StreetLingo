@@ -108,6 +108,36 @@ class StreetLingoRepositoryRuleTest : FirestoreEmulatorTestBase() {
     }
   }
 
+  @Test
+  fun awardProgress_updatesXpStreakAndLastPracticeDate() = runBlocking {
+    val uid = signInTestUser(ALICE_EMAIL)
+    val repo = StreetLingoRepository(firestore)
+    withTimeout(DEFAULT_TIMEOUT_MS) {
+      repo.ensureUserProfile(uid, "Alice Explorer")
+    }
+
+    val streakUpdate = withTimeout(DEFAULT_TIMEOUT_MS) {
+      repo.awardProgress(
+        userId = uid,
+        xpDelta = 20L,
+        completedNpcId = "paris_camille",
+        currentStreakDays = 0L,
+        lastPracticeDate = "",
+      )
+    }
+    assertEquals(1L, streakUpdate.newStreak)
+    assertTrue(streakUpdate.didIncrement)
+
+    val updatedProfile = withTimeout(FLOW_TIMEOUT_MS) {
+      repo.observeUserProfile(uid).first { it != null && it.xp >= 20L }
+    }
+    assertNotNull(updatedProfile)
+    assertEquals(20L, updatedProfile?.xp)
+    assertEquals(1L, updatedProfile?.streakDays)
+    assertEquals(streakUpdate.lastPracticeDate, updatedProfile?.lastPracticeDate)
+    assertTrue(updatedProfile?.completedNpcIds?.contains("paris_camille") == true)
+  }
+
   private companion object {
     const val ALICE_EMAIL = "alice_street@test.com"
     const val BOB_EMAIL = "bob_street@test.com"

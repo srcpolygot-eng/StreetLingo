@@ -59,6 +59,8 @@ import com.example.data.repository.StreetLingoRepository
 import com.example.firebase.attemptAutoSignIn
 import com.example.firebase.authStateFlow
 import com.example.ui.components.ContextualGrammarSheet
+import com.example.ui.components.DailyStreakDialog
+import com.example.ui.components.VoicePracticeSheet
 import com.example.ui.components.rememberTtsController
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.GrammarGuideScreen
@@ -144,6 +146,9 @@ private fun AuthenticatedStreetLingo(
   val guideExtraExamples by viewModel.guideExtraExamples.collectAsStateWithLifecycle()
   val selectedGrammarCityId by viewModel.selectedGrammarCityId.collectAsStateWithLifecycle()
   val focusedGrammarPointId by viewModel.focusedGrammarPointId.collectAsStateWithLifecycle()
+  val voicePracticeState by viewModel.voicePracticeState.collectAsStateWithLifecycle()
+  val voiceCoachAiState by viewModel.voiceCoachAiState.collectAsStateWithLifecycle()
+  val showStreakDialog by viewModel.showStreakDialog.collectAsStateWithLifecycle()
   val tts = rememberTtsController()
 
   val profile = when (val s = profileState) {
@@ -274,6 +279,15 @@ private fun AuthenticatedStreetLingo(
                     turnNote = phrase.culturalNote,
                   )
                 },
+                onPracticeVoice = { phrase ->
+                  viewModel.openVoicePracticeForTarget(
+                    cityId = phrase.cityId,
+                    npcName = phrase.npcName,
+                    targetPhrase = phrase.targetText,
+                    phonetic = phrase.phonetic,
+                    englishMeaning = phrase.translation,
+                  )
+                },
               )
             }
             composable(ROUTE_PASSPORT) {
@@ -287,6 +301,8 @@ private fun AuthenticatedStreetLingo(
                 },
                 onSelectDifficulty = { diff -> viewModel.selectDifficulty(diff) },
                 onSelectModel = { model -> viewModel.selectModel(model) },
+                onOpenStreakDialog = { viewModel.openStreakDialog() },
+                onOpenVoicePractice = { viewModel.openVoicePracticeForCity(profile.activeCityId) },
                 onSignedOut = {},
               )
             }
@@ -307,6 +323,29 @@ private fun AuthenticatedStreetLingo(
           navigateTab(ROUTE_GRAMMAR)
         },
         onDismiss = { viewModel.closeContextualGrammar() },
+      )
+    }
+
+    val activeVoiceState = voicePracticeState
+    if (activeVoiceState != null) {
+      VoicePracticeSheet(
+        state = activeVoiceState,
+        tts = tts,
+        coachAiState = voiceCoachAiState,
+        onPreviousPrompt = { viewModel.previousVoicePrompt() },
+        onNextPrompt = { viewModel.nextVoicePrompt() },
+        onSpokenResult = { transcript -> viewModel.onVoiceSpokenResult(transcript) },
+        onRequestAiFeedback = { viewModel.requestVoiceCoachAiFeedback() },
+        onDismiss = { viewModel.closeVoicePractice() },
+      )
+    }
+
+    if (showStreakDialog) {
+      DailyStreakDialog(
+        streakDays = profile.streakDays,
+        lastPracticeDate = profile.lastPracticeDate,
+        onStartVoicePractice = { viewModel.openVoicePracticeForCity(profile.activeCityId) },
+        onDismiss = { viewModel.closeStreakDialog() },
       )
     }
   }

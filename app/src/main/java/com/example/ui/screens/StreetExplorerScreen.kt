@@ -28,7 +28,9 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -58,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.CityDistrict
+import com.example.data.model.StreakCalculator
 import com.example.data.model.UserProfile
 import com.example.data.model.ViewDimension
 import com.example.data.world.CityCatalog
@@ -145,32 +148,73 @@ fun StreetExplorerScreen(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
       ) {
-        // City & XP badge
-        Surface(
-          shape = RoundedCornerShape(18.dp),
-          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-          tonalElevation = 4.dp,
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          modifier = Modifier.weight(1f, fill = false),
         ) {
-          Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(
-              text = "${city.name} · ${city.streetName}",
-              style = MaterialTheme.typography.titleMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
+          // City & XP badge
+          Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            tonalElevation = 4.dp,
+          ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+              Text(
+                text = "${city.name} · ${city.streetName}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+              ) {
+                Icon(
+                  imageVector = Icons.Rounded.Bolt,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.tertiary,
+                  modifier = Modifier.size(15.dp),
+                )
+                Text(
+                  text = "${profile.xp} XP · ${city.languageName}",
+                  style = MaterialTheme.typography.labelMedium,
+                  color = MaterialTheme.colorScheme.primary,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+              }
+            }
+          }
+
+          val practicedToday = StreakCalculator.isPracticedToday(profile.lastPracticeDate)
+          Surface(
+            onClick = { viewModel.openStreakDialog() },
+            shape = RoundedCornerShape(18.dp),
+            color = if (practicedToday) {
+              MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.96f)
+            } else {
+              MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+            },
+            tonalElevation = 4.dp,
+            modifier = Modifier.testTag("daily_streak_pill"),
+          ) {
             Row(
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
               Icon(
-                imageVector = Icons.Rounded.Bolt,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(15.dp),
+                imageVector = Icons.Rounded.LocalFireDepartment,
+                contentDescription = "Daily practice streak",
+                tint = if (practicedToday) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
               )
               Text(
-                text = "${profile.xp} XP · ${city.languageName}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                text = "${profile.streakDays}d",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (practicedToday) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
               )
             }
           }
@@ -296,40 +340,84 @@ fun StreetExplorerScreen(
           },
         )
 
-        // Instant Scene Illustrate button for current street spot
-        Surface(
-          onClick = {
-            val near = worldState.nearbyLocal
-            if (near != null) {
-              viewModel.openIllustrationSheetFor(near.illustrationSubject, near.localGreeting)
-            } else {
-              viewModel.openIllustrationSheetFor(
-                subject = "Sunlit view of ${city.streetName} in ${city.name} with shop awnings",
-                phraseContext = "${city.name} · ${city.streetName}",
+        // Voice Practice + Instant Scene Illustrate quick action pills
+        Column(
+          horizontalAlignment = Alignment.End,
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Surface(
+            onClick = {
+              val near = worldState.nearbyLocal
+              if (near != null) {
+                viewModel.openVoicePracticeForTarget(
+                  cityId = city.id,
+                  npcName = near.name,
+                  targetPhrase = near.localGreeting,
+                  phonetic = near.greetingPhonetic,
+                  englishMeaning = near.greetingEnglish,
+                )
+              } else {
+                viewModel.openVoicePracticeForCity(city.id)
+              }
+            },
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            tonalElevation = 4.dp,
+            modifier = Modifier.testTag("street_voice_practice_button"),
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+              Icon(
+                imageVector = Icons.Rounded.Mic,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(18.dp),
+              )
+              Text(
+                text = stringResource(R.string.voice_practice),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
               )
             }
-          },
-          shape = RoundedCornerShape(18.dp),
-          color = MaterialTheme.colorScheme.secondaryContainer,
-          tonalElevation = 4.dp,
-          modifier = Modifier.testTag("street_instant_illustrate_button"),
-        ) {
-          Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+          }
+
+          Surface(
+            onClick = {
+              val near = worldState.nearbyLocal
+              if (near != null) {
+                viewModel.openIllustrationSheetFor(near.illustrationSubject, near.localGreeting)
+              } else {
+                viewModel.openIllustrationSheetFor(
+                  subject = "Sunlit view of ${city.streetName} in ${city.name} with shop awnings",
+                  phraseContext = "${city.name} · ${city.streetName}",
+                )
+              }
+            },
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            tonalElevation = 4.dp,
+            modifier = Modifier.testTag("street_instant_illustrate_button"),
           ) {
-            Icon(
-              imageVector = Icons.Rounded.AutoAwesome,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.onSecondaryContainer,
-              modifier = Modifier.size(18.dp),
-            )
-            Text(
-              text = stringResource(R.string.instant_illustrate),
-              style = MaterialTheme.typography.labelLarge,
-              color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
+            Row(
+              modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+              Icon(
+                imageVector = Icons.Rounded.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(18.dp),
+              )
+              Text(
+                text = stringResource(R.string.instant_illustrate),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+              )
+            }
           }
         }
       }
@@ -379,6 +467,15 @@ fun StreetExplorerScreen(
             cityId = city.id,
             npcName = if (turn.isUser) "You" else activeLocal.name,
             turnNote = turn.grammarNote,
+          )
+        },
+        onShadowTurn = { turn ->
+          viewModel.openVoicePracticeForTarget(
+            cityId = city.id,
+            npcName = activeLocal.name,
+            targetPhrase = turn.text,
+            phonetic = turn.phonetic,
+            englishMeaning = turn.translation,
           )
         },
         onDismiss = { viewModel.closeChatSheet() },

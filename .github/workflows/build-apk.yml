@@ -65,9 +65,9 @@ jobs:
       - name: Compile Debug APK
         run: |
           if [ -f gradlew ]; then
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --stacktrace --max-workers=2
           else
-            gradle assembleDebug --stacktrace
+            gradle assembleDebug --stacktrace --max-workers=2
           fi
 
       - name: Locate and verify APK

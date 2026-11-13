@@ -15,10 +15,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -179,7 +179,7 @@ fun ContextualGrammarSheet(
             modifier = Modifier.size(48.dp).testTag("contextual_speak_sentence_button"),
           ) {
             Icon(
-              imageVector = Icons.Rounded.VolumeUp,
+              imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
               contentDescription = "Listen to dialogue sentence",
               tint = MaterialTheme.colorScheme.primary,
             )
@@ -295,7 +295,7 @@ fun ContextualGrammarSheet(
                   modifier = Modifier.size(48.dp),
                 ) {
                   Icon(
-                    imageVector = Icons.Rounded.VolumeUp,
+                    imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                     contentDescription = "Listen to example",
                     tint = MaterialTheme.colorScheme.primary,
                   )

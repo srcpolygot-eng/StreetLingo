@@ -3,6 +3,8 @@ package com.example.data.repository
 import android.content.Context
 import com.example.R
 import com.example.data.model.SavedPhrase
+import com.example.data.model.StreakCalculator
+import com.example.data.model.StreakUpdate
 import com.example.data.model.UserProfile
 import com.example.firebase.OperationType
 import com.example.firebase.handleFirestoreError
@@ -66,7 +68,8 @@ class StreetLingoRepository(private val db: FirebaseFirestore) {
           "difficulty" to "beginner",
           "preferredModel" to "gemini-4-hydrogen",
           "xp" to 0L,
-          "streakDays" to 1L,
+          "streakDays" to 0L,
+          "lastPracticeDate" to "",
           "completedNpcIds" to emptyList<String>(),
           "createdAt" to FieldValue.serverTimestamp(),
           "updatedAt" to FieldValue.serverTimestamp(),
@@ -109,10 +112,18 @@ class StreetLingoRepository(private val db: FirebaseFirestore) {
     userId: String,
     xpDelta: Long,
     completedNpcId: String? = null,
-  ) {
+    currentStreakDays: Long = 0L,
+    lastPracticeDate: String = "",
+  ): StreakUpdate {
     val docRef = db.collection("users").document(userId)
+    val streakUpdate = StreakCalculator.computeStreakUpdate(
+      currentStreak = currentStreakDays,
+      lastPracticeDate = lastPracticeDate,
+    )
     val updates = mutableMapOf<String, Any>(
       "xp" to FieldValue.increment(xpDelta.coerceAtLeast(0L)),
+      "streakDays" to streakUpdate.newStreak,
+      "lastPracticeDate" to streakUpdate.lastPracticeDate,
       "updatedAt" to FieldValue.serverTimestamp(),
     )
     if (!completedNpcId.isNullOrBlank()) {
@@ -120,6 +131,7 @@ class StreetLingoRepository(private val db: FirebaseFirestore) {
     }
     try {
       docRef.update(updates).await()
+      return streakUpdate
     } catch (e: CancellationException) {
       throw e
     } catch (e: Exception) {

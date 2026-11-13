@@ -24,6 +24,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import com.example.R
 import com.example.data.model.CityDistrict
+import com.example.data.model.StreakCalculator
 import com.example.data.model.StreetDifficulty
 import com.example.data.model.UserProfile
 import com.example.data.world.CityCatalog
@@ -67,6 +70,8 @@ fun PassportScreen(
   onSelectCity: (String) -> Unit,
   onSelectDifficulty: (StreetDifficulty) -> Unit,
   onSelectModel: (String) -> Unit,
+  onOpenStreakDialog: () -> Unit,
+  onOpenVoicePractice: () -> Unit,
   onSignedOut: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -98,28 +103,76 @@ fun PassportScreen(
 
     // XP & Streak Summary
     item {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-      ) {
-        StatCard(
-          label = "Total XP",
-          value = "${profile.xp}",
-          icon = Icons.Rounded.Bolt,
-          modifier = Modifier.weight(1f),
-        )
-        StatCard(
-          label = "Streak",
-          value = "${profile.streakDays}d",
-          icon = Icons.Rounded.LocalFireDepartment,
-          modifier = Modifier.weight(1f),
-        )
-        StatCard(
-          label = "Saved Cards",
-          value = "$savedPhraseCount",
-          icon = Icons.Rounded.AutoAwesome,
-          modifier = Modifier.weight(1f),
-        )
+      val practicedToday = StreakCalculator.isPracticedToday(profile.lastPracticeDate)
+      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+          StatCard(
+            label = "Total XP",
+            value = "${profile.xp}",
+            icon = Icons.Rounded.Bolt,
+            modifier = Modifier.weight(1f),
+          )
+          StatCard(
+            label = if (practicedToday) "Practiced Today" else "Daily Streak",
+            value = "${profile.streakDays}d",
+            icon = Icons.Rounded.LocalFireDepartment,
+            onClick = onOpenStreakDialog,
+            modifier = Modifier
+              .weight(1f)
+              .testTag("passport_streak_card"),
+          )
+          StatCard(
+            label = "Saved Cards",
+            value = "$savedPhraseCount",
+            icon = Icons.Rounded.AutoAwesome,
+            modifier = Modifier.weight(1f),
+          )
+        }
+
+        Card(
+          shape = RoundedCornerShape(22.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+          modifier = Modifier.fillMaxWidth().testTag("passport_voice_practice_card"),
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+          ) {
+            Column(
+              modifier = Modifier.weight(1f),
+              verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+              Text(
+                text = "Voice Speaking Studio",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = if (practicedToday) {
+                  "Daily streak active! Drill pronunciation for extra XP."
+                } else {
+                  "Practice 1 spoken phrase today to keep your daily streak alive."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+            Button(
+              onClick = onOpenVoicePractice,
+              modifier = Modifier.testTag("passport_voice_practice_button"),
+            ) {
+              Icon(Icons.Rounded.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+              Spacer(Modifier.width(6.dp))
+              Text("Speak")
+            }
+          }
+        }
       }
     }
 
@@ -238,12 +291,11 @@ private fun StatCard(
   value: String,
   icon: androidx.compose.ui.graphics.vector.ImageVector,
   modifier: Modifier = Modifier,
+  onClick: (() -> Unit)? = null,
 ) {
-  Card(
-    modifier = modifier,
-    shape = RoundedCornerShape(18.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-  ) {
+  val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+  val cardShape = RoundedCornerShape(18.dp)
+  val cardContent: @Composable () -> Unit = {
     Column(
       modifier = Modifier.padding(12.dp),
       verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -265,6 +317,22 @@ private fun StatCard(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
+  }
+  if (onClick != null) {
+    Card(
+      onClick = onClick,
+      modifier = modifier,
+      shape = cardShape,
+      colors = cardColors,
+      content = { cardContent() },
+    )
+  } else {
+    Card(
+      modifier = modifier,
+      shape = cardShape,
+      colors = cardColors,
+      content = { cardContent() },
+    )
   }
 }
 

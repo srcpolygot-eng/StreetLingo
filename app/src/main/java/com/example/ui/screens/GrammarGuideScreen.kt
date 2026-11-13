@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.ExpandLess
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -587,7 +587,7 @@ private fun GrammarDialogueExampleCard(
         )
         IconButton(onClick = onSpeak, modifier = Modifier.size(48.dp)) {
           Icon(
-            imageVector = Icons.Rounded.VolumeUp,
+            imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
             contentDescription = "Listen to dialogue example",
             tint = MaterialTheme.colorScheme.primary,
           )

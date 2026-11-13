@@ -42,6 +42,11 @@ service cloud.firestore {
              data.streakDays is int &&
              data.streakDays >= 0 &&
              data.streakDays <= 36500 &&
+             (!('lastPracticeDate' in data) || (
+               data.lastPracticeDate is string &&
+               data.lastPracticeDate.size() <= 16 &&
+               data.lastPracticeDate.matches('^([0-9]{4}-[0-9]{2}-[0-9]{2})?$')
+             )) &&
              data.completedNpcIds is list &&
              data.completedNpcIds.size() <= 30 &&
              (data.completedNpcIds.size() == 0 || data.completedNpcIds[0] is string) &&
@@ -97,8 +102,8 @@ service cloud.firestore {
                        ]) &&
                        incoming().keys().hasOnly([
                          'userId', 'displayName', 'activeCityId', 'difficulty',
-                         'preferredModel', 'xp', 'streakDays', 'completedNpcIds',
-                         'createdAt', 'updatedAt'
+                         'preferredModel', 'xp', 'streakDays', 'lastPracticeDate',
+                         'completedNpcIds', 'createdAt', 'updatedAt'
                        ]) &&
                        isValidUserProfile(incoming());
 
@@ -110,8 +115,8 @@ service cloud.firestore {
                        incoming().createdAt == existing().createdAt &&
                        incoming().diff(existing()).affectedKeys().hasOnly([
                          'displayName', 'activeCityId', 'difficulty',
-                         'preferredModel', 'xp', 'streakDays', 'completedNpcIds',
-                         'updatedAt'
+                         'preferredModel', 'xp', 'streakDays', 'lastPracticeDate',
+                         'completedNpcIds', 'updatedAt'
                        ]);
 
       allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;

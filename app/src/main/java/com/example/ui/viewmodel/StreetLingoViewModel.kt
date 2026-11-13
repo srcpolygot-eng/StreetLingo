@@ -12,6 +12,8 @@ import com.example.data.model.ChatTurn
 import com.example.data.model.CityDistrict
 import com.example.data.model.GrammarPoint
 import com.example.data.model.ParsedIllustration
+import com.example.data.model.PronunciationEvaluator
+import com.example.data.model.PronunciationResult
 import com.example.data.model.SavedPhrase
 import com.example.data.model.StreetDifficulty
 import com.example.data.model.StreetLocal
@@ -85,6 +87,32 @@ data class ContextualGrammarState(
   val npcName: String? = null,
   val turnNote: String = "",
 )
+
+data class VoicePracticePrompt(
+  val npcName: String,
+  val targetPhrase: String,
+  val phonetic: String = "",
+  val englishMeaning: String = "",
+)
+
+data class VoicePracticeState(
+  val cityId: String,
+  val prompts: List<VoicePracticePrompt>,
+  val promptIndex: Int = 0,
+  val lastSpokenTranscript: String = "",
+  val evaluation: PronunciationResult? = null,
+) {
+  val currentPrompt: VoicePracticePrompt
+    get() = prompts.getOrElse(promptIndex) {
+      VoicePracticePrompt(npcName = "", targetPhrase = "")
+    }
+  val npcName: String get() = currentPrompt.npcName
+  val targetPhrase: String get() = currentPrompt.targetPhrase
+  val phonetic: String get() = currentPrompt.phonetic
+  val englishMeaning: String get() = currentPrompt.englishMeaning
+  val hasPlaylist: Boolean get() = prompts.size > 1
+  val totalPrompts: Int get() = prompts.size
+}
 
 data class StreetWorldUiState(
   val viewDimension: ViewDimension = ViewDimension.MODE_3D,
@@ -176,12 +204,22 @@ class StreetLingoViewModel(
   private val _focusedGrammarPointId = MutableStateFlow<String?>(null)
   val focusedGrammarPointId: StateFlow<String?> = _focusedGrammarPointId.asStateFlow()
 
+  private val _voicePracticeState = MutableStateFlow<VoicePracticeState?>(null)
+  val voicePracticeState: StateFlow<VoicePracticeState?> = _voicePracticeState.asStateFlow()
+
+  private val _voiceCoachAiState = MutableStateFlow<GrammarAiUiState>(GrammarAiUiState.Idle)
+  val voiceCoachAiState: StateFlow<GrammarAiUiState> = _voiceCoachAiState.asStateFlow()
+
+  private val _showStreakDialog = MutableStateFlow(false)
+  val showStreakDialog: StateFlow<Boolean> = _showStreakDialog.asStateFlow()
+
   private var activeChatSession: Chat? = null
   private var chatJob: Job? = null
   private var illustrationJob: Job? = null
   private var hdPaintJob: Job? = null
   private var contextualGrammarJob: Job? = null
   private var guideExamplesJob: Job? = null
+  private var voiceCoachJob: Job? = null
 
   init {
     viewModelScope.launch {
@@ -467,10 +505,22 @@ class StreetLingoViewModel(
 
         _worldState.update { it.copy(isChatStreaming = false) }
 
-        // Award XP for each conversational exchange (+25 XP, +75 XP bonus on quest completion)
-        val xpGain = if (latestQuestDone && !profile.completedNpcIds.contains(local.id)) 75L else 20L
+        // Award XP for each conversational exchange (+20 XP, +75 XP bonus on quest completion) and update daily streak
+        val latestProfile = currentProfile()
+        val xpGain = if (latestQuestDone && !latestProfile.completedNpcIds.contains(local.id)) 75L else 20L
         val completedId = if (latestQuestDone) local.id else null
-        repository.awardProgress(currentUserId, xpGain, completedId)
+        val streakUpdate = repository.awardProgress(
+          userId = currentUserId,
+          xpDelta = xpGain,
+          completedNpcId = completedId,
+          currentStreakDays = latestProfile.streakDays,
+          lastPracticeDate = latestProfile.lastPracticeDate,
+        )
+        if (streakUpdate.didIncrement) {
+          _worldState.update {
+            it.copy(savedToastMessage = "Daily streak extended to ${streakUpdate.newStreak} day(s)!")
+          }
+        }
 
         // Automatically stream an instant illustration reflecting the live reply!
         if (latestReplyText.isNotBlank()) {
@@ -582,8 +632,19 @@ class StreetLingoViewModel(
           culturalNote = turn.coachTip,
           illustrationCommands = currentIllus,
         )
-        repository.awardProgress(currentUserId, 15L)
-        _worldState.update { it.copy(savedToastMessage = "Saved to your Phrasebook (+15 XP)") }
+        val currentProf = currentProfile()
+        val streakUpdate = repository.awardProgress(
+          userId = currentUserId,
+          xpDelta = 15L,
+          currentStreakDays = currentProf.streakDays,
+          lastPracticeDate = currentProf.lastPracticeDate,
+        )
+        val toast = if (streakUpdate.didIncrement) {
+          "Saved to your Phrasebook (+15 XP · ${streakUpdate.newStreak}d streak!)"
+        } else {
+          "Saved to your Phrasebook (+15 XP)"
+        }
+        _worldState.update { it.copy(savedToastMessage = toast) }
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
@@ -614,8 +675,19 @@ class StreetLingoViewModel(
           culturalNote = caption.culturalTip,
           illustrationCommands = parsed.rawLines,
         )
-        repository.awardProgress(currentUserId, 15L)
-        _worldState.update { it.copy(savedToastMessage = "Illustrated card saved (+15 XP)") }
+        val currentProf = currentProfile()
+        val streakUpdate = repository.awardProgress(
+          userId = currentUserId,
+          xpDelta = 15L,
+          currentStreakDays = currentProf.streakDays,
+          lastPracticeDate = currentProf.lastPracticeDate,
+        )
+        val toast = if (streakUpdate.didIncrement) {
+          "Illustrated card saved (+15 XP · ${streakUpdate.newStreak}d streak!)"
+        } else {
+          "Illustrated card saved (+15 XP)"
+        }
+        _worldState.update { it.copy(savedToastMessage = toast) }
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
@@ -768,6 +840,167 @@ class StreetLingoViewModel(
         Log.e(TAG, "Failed to switch city for grammar practice", e)
       }
     }
+  }
+
+  fun openStreakDialog() {
+    _showStreakDialog.value = true
+  }
+
+  fun closeStreakDialog() {
+    _showStreakDialog.value = false
+  }
+
+  fun openVoicePracticeForCity(cityId: String = currentCity().id) {
+    val city = CityCatalog.cityById(cityId)
+    val prompts = city.locals.flatMap { local ->
+      buildList {
+        add(
+          VoicePracticePrompt(
+            npcName = local.name,
+            targetPhrase = local.localGreeting,
+            phonetic = local.greetingPhonetic,
+            englishMeaning = local.greetingEnglish,
+          ),
+        )
+        local.starterReplies.firstOrNull()?.let { reply ->
+          add(
+            VoicePracticePrompt(
+              npcName = "Reply to ${local.name}",
+              targetPhrase = reply,
+              phonetic = "",
+              englishMeaning = "Starter response for ${local.questTitle}",
+            ),
+          )
+        }
+      }
+    }
+    voiceCoachJob?.cancel()
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
+    _voicePracticeState.value = VoicePracticeState(
+      cityId = city.id,
+      prompts = prompts,
+      promptIndex = 0,
+    )
+  }
+
+  fun openVoicePracticeForTarget(
+    cityId: String,
+    npcName: String,
+    targetPhrase: String,
+    phonetic: String = "",
+    englishMeaning: String = "",
+  ) {
+    voiceCoachJob?.cancel()
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
+    _voicePracticeState.value = VoicePracticeState(
+      cityId = cityId,
+      prompts = listOf(
+        VoicePracticePrompt(
+          npcName = npcName,
+          targetPhrase = targetPhrase,
+          phonetic = phonetic,
+          englishMeaning = englishMeaning,
+        ),
+      ),
+      promptIndex = 0,
+    )
+  }
+
+  fun previousVoicePrompt() {
+    val current = _voicePracticeState.value ?: return
+    if (current.prompts.size <= 1) return
+    val prevIdx = if (current.promptIndex == 0) current.prompts.lastIndex else current.promptIndex - 1
+    voiceCoachJob?.cancel()
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
+    _voicePracticeState.value = current.copy(
+      promptIndex = prevIdx,
+      lastSpokenTranscript = "",
+      evaluation = null,
+    )
+  }
+
+  fun nextVoicePrompt() {
+    val current = _voicePracticeState.value ?: return
+    if (current.prompts.size <= 1) return
+    val nextIdx = (current.promptIndex + 1) % current.prompts.size
+    voiceCoachJob?.cancel()
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
+    _voicePracticeState.value = current.copy(
+      promptIndex = nextIdx,
+      lastSpokenTranscript = "",
+      evaluation = null,
+    )
+  }
+
+  fun onVoiceSpokenResult(transcript: String) {
+    val current = _voicePracticeState.value ?: return
+    val clean = transcript.trim()
+    if (clean.isEmpty()) return
+    val eval = PronunciationEvaluator.evaluate(current.targetPhrase, clean)
+    voiceCoachJob?.cancel()
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
+    _voicePracticeState.value = current.copy(
+      lastSpokenTranscript = clean,
+      evaluation = eval,
+    )
+    viewModelScope.launch {
+      try {
+        val profile = currentProfile()
+        val streakUpdate = repository.awardProgress(
+          userId = currentUserId,
+          xpDelta = 20L,
+          currentStreakDays = profile.streakDays,
+          lastPracticeDate = profile.lastPracticeDate,
+        )
+        val toast = if (streakUpdate.didIncrement) {
+          "Voice practice: ${eval.score}% (+20 XP · ${streakUpdate.newStreak}d streak!)"
+        } else {
+          "Voice practice: ${eval.score}% (+20 XP)"
+        }
+        _worldState.update { it.copy(savedToastMessage = toast) }
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to record voice practice progress", e)
+      }
+    }
+  }
+
+  fun requestVoiceCoachAiFeedback() {
+    val current = _voicePracticeState.value ?: return
+    if (current.lastSpokenTranscript.isBlank()) return
+    val city = CityCatalog.cityById(current.cityId)
+    val modelName = currentProfile().preferredModel.ifBlank { "gemini-4-hydrogen" }
+    voiceCoachJob?.cancel()
+    voiceCoachJob = viewModelScope.launch {
+      _voiceCoachAiState.value = GrammarAiUiState.Streaming("")
+      try {
+        var finalText = ""
+        aiService.streamVoiceCoachFeedback(
+          modelName = modelName,
+          city = city,
+          expectedPhrase = current.targetPhrase,
+          spokenTranscript = current.lastSpokenTranscript,
+        ).collect { text ->
+          finalText = text
+          _voiceCoachAiState.value = GrammarAiUiState.Streaming(text)
+        }
+        _voiceCoachAiState.value = GrammarAiUiState.Success(finalText)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        Log.e(TAG, "Voice coach feedback failed", e)
+        _voiceCoachAiState.value = GrammarAiUiState.Error(
+          e.localizedMessage ?: "Failed to get pronunciation coaching."
+        )
+      }
+    }
+  }
+
+  fun closeVoicePractice() {
+    voiceCoachJob?.cancel()
+    _voicePracticeState.value = null
+    _voiceCoachAiState.value = GrammarAiUiState.Idle
   }
 
   companion object {

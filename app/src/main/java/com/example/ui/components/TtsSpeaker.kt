@@ -14,10 +14,11 @@ class TtsController(
   private val tts: TextToSpeech?,
   private val isReady: Boolean,
 ) {
-  fun speak(text: String, languageTag: String) {
+  fun speak(text: String, languageTag: String, speechRate: Float = 1.0f) {
     if (!isReady || tts == null || text.isBlank()) return
     val locale = Locale.forLanguageTag(languageTag)
     tts.language = locale
+    tts.setSpeechRate(speechRate.coerceIn(0.5f, 1.5f))
     tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "streetlingo_${System.currentTimeMillis()}")
   }
 }

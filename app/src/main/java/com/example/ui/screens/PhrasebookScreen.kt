@@ -21,11 +21,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +62,7 @@ fun PhrasebookScreen(
   onUpdateMastery: (String, Long) -> Unit,
   onDeletePhrase: (String) -> Unit,
   onInspectGrammar: (GrammarPoint, SavedPhrase) -> Unit,
+  onPracticeVoice: (SavedPhrase) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   var selectedCityFilter by remember { mutableStateOf("all") }
@@ -166,6 +168,7 @@ fun PhrasebookScreen(
                 onUpdateMastery = { level -> onUpdateMastery(phrase.id, level) },
                 onDelete = { onDeletePhrase(phrase.id) },
                 onInspectGrammar = { pt -> onInspectGrammar(pt, phrase) },
+                onPracticeVoice = { onPracticeVoice(phrase) },
               )
             }
           }
@@ -183,6 +186,7 @@ private fun SavedPhraseCard(
   onUpdateMastery: (Long) -> Unit,
   onDelete: () -> Unit,
   onInspectGrammar: (GrammarPoint) -> Unit,
+  onPracticeVoice: () -> Unit,
 ) {
   val city = CityCatalog.cityById(phrase.cityId)
   val parsed = remember(phrase.illustrationCommands) {
@@ -224,11 +228,24 @@ private fun SavedPhraseCard(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-          IconButton(onClick = onSpeak, modifier = Modifier.size(48.dp)) {
+          IconButton(
+            onClick = onSpeak,
+            modifier = Modifier.size(48.dp).testTag("speak_phrase_button"),
+          ) {
             Icon(
-              imageVector = Icons.Rounded.VolumeUp,
+              imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
               contentDescription = "Speak phrase",
               tint = MaterialTheme.colorScheme.primary,
+            )
+          }
+          IconButton(
+            onClick = onPracticeVoice,
+            modifier = Modifier.size(48.dp).testTag("practice_phrase_voice_button"),
+          ) {
+            Icon(
+              imageVector = Icons.Rounded.Mic,
+              contentDescription = "Practice speaking phrase",
+              tint = MaterialTheme.colorScheme.secondary,
             )
           }
           IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {

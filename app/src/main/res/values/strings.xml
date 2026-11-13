@@ -18,4 +18,5 @@
     <string name="grammar_guide_subtitle">Essential grammar patterns drawn directly from local conversations in Paris, Tokyo, and Madrid</string>
     <string name="open_in_grammar_guide">Open in Full Grammar Guide</string>
     <string name="explain_with_gemini">Explain This Line in Context</string>
+    <string name="voice_practice">Speak</string>
 </resources>

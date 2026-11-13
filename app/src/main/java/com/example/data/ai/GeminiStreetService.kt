@@ -368,4 +368,45 @@ class GeminiStreetService {
       throw e
     }
   }
+
+  fun streamVoiceCoachFeedback(
+    modelName: String,
+    city: CityDistrict,
+    expectedPhrase: String,
+    spokenTranscript: String,
+  ): Flow<String> = flow {
+    val model = getModel(modelName)
+    val prompt = buildString {
+      appendLine("You are a warm ${city.languageName} pronunciation & street speaking coach in ${city.name} (${city.streetName}).")
+      appendLine("Target phrase: \"$expectedPhrase\"")
+      appendLine("What the learner's speech recognition captured: \"$spokenTranscript\"")
+      appendLine("Give concise, encouraging spoken feedback in 3 short bullet points:")
+      appendLine("• What sounded natural or accurate.")
+      appendLine("• Which sound, stress, or word to refine (with a simple phonetic cue).")
+      appendLine("• One natural follow-up reply a local in ${city.name} might say back.")
+    }
+    val buffer = StringBuilder()
+    try {
+      withTimeout(AI_TIMEOUT_MS) {
+        model.generateContentStream(prompt).collect { chunk ->
+          val piece = chunk.text.orEmpty()
+          if (piece.isNotEmpty()) {
+            buffer.append(piece)
+            emit(buffer.toString())
+          }
+        }
+      }
+      if (buffer.isBlank()) {
+        throw IllegalStateException("Model returned empty voice coaching feedback.")
+      }
+    } catch (e: TimeoutCancellationException) {
+      Log.e(TAG, "Voice coach streaming timed out", e)
+      throw IllegalStateException("Voice coach timed out after 60 seconds.", e)
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      Log.e(TAG, "Voice coach streaming failed", e)
+      throw e
+    }
+  }
 }

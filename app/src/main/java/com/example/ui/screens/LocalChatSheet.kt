@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,11 +28,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -53,16 +59,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.data.model.ChatTurn
 import com.example.data.model.CityDistrict
 import com.example.data.model.GrammarPoint
 import com.example.data.model.StreetLocal
 import com.example.data.world.GrammarCatalog
 import com.example.ui.components.TtsController
+import com.example.ui.components.rememberVoicePracticeController
 import com.example.ui.viewmodel.HdPaintUiState
 import com.example.ui.viewmodel.IllustrationUiState
 
@@ -84,11 +93,28 @@ fun LocalChatSheet(
   onSaveTurn: (ChatTurn) -> Unit,
   onSaveIllustrationCard: () -> Unit,
   onInspectGrammar: (GrammarPoint?, ChatTurn) -> Unit,
+  onShadowTurn: (ChatTurn) -> Unit,
   onDismiss: () -> Unit,
 ) {
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
   var inputText by remember { mutableStateOf("") }
+  var micPermissionDenied by remember { mutableStateOf(false) }
   val listState = rememberLazyListState()
+  val context = LocalContext.current
+  val voiceController = rememberVoicePracticeController()
+
+  val micPermissionLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.RequestPermission(),
+  ) { granted ->
+    if (granted) {
+      micPermissionDenied = false
+      voiceController.startListening(city.languageTag) { transcript ->
+        inputText = transcript
+      }
+    } else {
+      micPermissionDenied = true
+    }
+  }
 
   LaunchedEffect(turns.size, turns.lastOrNull()?.text?.length) {
     if (turns.isNotEmpty()) {
@@ -97,7 +123,10 @@ fun LocalChatSheet(
   }
 
   ModalBottomSheet(
-    onDismissRequest = onDismiss,
+    onDismissRequest = {
+      voiceController.stopListening()
+      onDismiss()
+    },
     sheetState = sheetState,
     containerColor = MaterialTheme.colorScheme.background,
   ) {
@@ -159,7 +188,10 @@ fun LocalChatSheet(
         }
 
         IconButton(
-          onClick = onDismiss,
+          onClick = {
+            voiceController.stopListening()
+            onDismiss()
+          },
           modifier = Modifier.size(48.dp).testTag("close_chat_sheet_button"),
         ) {
           Icon(Icons.Rounded.Close, contentDescription = "Close conversation")
@@ -198,6 +230,7 @@ fun LocalChatSheet(
             },
             onSave = { onSaveTurn(turn) },
             onInspectGrammar = { point -> onInspectGrammar(point, turn) },
+            onShadowSpeak = { onShadowTurn(turn) },
           )
         }
       }
@@ -229,11 +262,76 @@ fun LocalChatSheet(
         }
       }
 
+      if (voiceController.isListening) {
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
+        ) {
+          Text(
+            text = if (voiceController.partialText.isNotBlank()) {
+              "Listening (${city.languageName}): \"${voiceController.partialText}\""
+            } else {
+              "Listening in ${city.languageName} — speak your reply..."
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+          )
+        }
+      } else if (micPermissionDenied || !voiceController.errorMessage.isNullOrBlank()) {
+        val voiceNotice = if (micPermissionDenied) {
+          "Microphone permission is required for voice replies."
+        } else {
+          voiceController.errorMessage.orEmpty()
+        }
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+        ) {
+          Text(
+            text = voiceNotice,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+          )
+        }
+      }
+
       Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
       ) {
+        FilledTonalIconButton(
+          onClick = {
+            if (voiceController.isListening) {
+              voiceController.stopListening()
+            } else {
+              val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+              ) == PackageManager.PERMISSION_GRANTED
+              if (granted) {
+                micPermissionDenied = false
+                voiceController.startListening(city.languageTag) { transcript ->
+                  inputText = transcript
+                }
+              } else {
+                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+              }
+            }
+          },
+          enabled = !isChatStreaming,
+          modifier = Modifier
+            .size(52.dp)
+            .testTag("voice_reply_button"),
+        ) {
+          Icon(
+            imageVector = if (voiceController.isListening) Icons.Rounded.Stop else Icons.Rounded.Mic,
+            contentDescription = if (voiceController.isListening) "Stop voice input" else "Speak reply",
+            tint = if (voiceController.isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+          )
+        }
         OutlinedTextField(
           value = inputText,
           onValueChange = { inputText = it },
@@ -287,6 +385,7 @@ private fun ChatTurnCard(
   onIllustrate: () -> Unit,
   onSave: () -> Unit,
   onInspectGrammar: (GrammarPoint?) -> Unit,
+  onShadowSpeak: () -> Unit,
 ) {
   val isUser = turn.isUser
   val containerColor = if (isUser) {
@@ -421,9 +520,20 @@ private fun ChatTurnCard(
               modifier = Modifier.size(48.dp).testTag("speak_turn_button"),
             ) {
               Icon(
-                imageVector = Icons.Rounded.VolumeUp,
+                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                 contentDescription = "Listen to pronunciation",
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+              )
+            }
+            IconButton(
+              onClick = onShadowSpeak,
+              modifier = Modifier.size(48.dp).testTag("shadow_turn_button"),
+            ) {
+              Icon(
+                imageVector = Icons.Rounded.Mic,
+                contentDescription = "Practice speaking this line",
+                tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(18.dp),
               )
             }
