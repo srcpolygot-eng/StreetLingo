@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Learner profile, XP progress, preferred city/difficulty/model, and completed street locals.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase Auth UID"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Learner display name"
+        },
+        "activeCityId": {
+          "type": "string",
+          "enum": ["paris", "tokyo", "madrid"],
+          "description": "Currently selected interactive city street"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["beginner", "intermediate", "advanced"],
+          "description": "CEFR difficulty level for local conversations"
+        },
+        "preferredModel": {
+          "type": "string",
+          "description": "Preferred Gemini model name (defaults to gemini-4-hydrogen)"
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Accumulated language learning experience points"
+        },
+        "streakDays": {
+          "type": "integer",
+          "description": "Current learning streak in days"
+        },
+        "completedNpcIds": {
+          "type": "array",
+          "description": "List of local NPC IDs whose street quest was completed"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was created (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "activeCityId",
+        "difficulty",
+        "preferredModel",
+        "xp",
+        "streakDays",
+        "completedNpcIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavedPhrase": {
+      "title": "SavedPhrase",
+      "description": "Saved bilingual phrase with Gemini-streamed vector illustration commands.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase Auth UID owning this phrase"
+        },
+        "cityId": {
+          "type": "string",
+          "enum": ["paris", "tokyo", "madrid"],
+          "description": "City street where phrase was learned"
+        },
+        "npcName": {
+          "type": "string",
+          "description": "Local NPC who taught the phrase"
+        },
+        "targetText": {
+          "type": "string",
+          "description": "Phrase in target language"
+        },
+        "phonetic": {
+          "type": "string",
+          "description": "Pronunciation guide / romaji / IPA"
+        },
+        "translation": {
+          "type": "string",
+          "description": "English meaning"
+        },
+        "culturalNote": {
+          "type": "string",
+          "description": "Brief street etiquette or cultural tip"
+        },
+        "illustrationCommands": {
+          "type": "array",
+          "description": "Streamed vector drawing DSL commands from Gemini 4 Hydrogen"
+        },
+        "masteryLevel": {
+          "type": "integer",
+          "description": "Learner mastery rating from 0 to 5"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when phrase was saved (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when phrase was last updated (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": [
+        "userId",
+        "cityId",
+        "npcName",
+        "targetText",
+        "phonetic",
+        "translation",
+        "culturalNote",
+        "illustrationCommands",
+        "masteryLevel",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User-owned learner profile and XP progression."
+    },
+    "/users/{userId}/phrases/{phraseId}": {
+      "schema": {
+        "$ref": "#/entities/SavedPhrase"
+      },
+      "description": "User-owned saved phrasebook cards and streamed illustrations."
+    }
+  }
+}

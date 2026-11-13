@@ -1,0 +1,6 @@
+{
+  "name": "StreetLingo",
+  "description": "Playable 2D and 3D language learning app with interactive city streets, live local conversations, and streaming instant illustrations powered by Gemini 4 Hydrogen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

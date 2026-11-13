@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">StreetLingo</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="auth_headline">Walk Living Streets. Speak With Locals.</string>
+    <string name="auth_subhead">Explore interactive 2D and 3D neighborhoods in Paris, Tokyo, and Madrid with live Gemini 4 Hydrogen conversations and instant streamed illustrations.</string>
+    <string name="nav_streets">Streets</string>
+    <string name="nav_grammar">Grammar</string>
+    <string name="nav_phrasebook">Phrasebook</string>
+    <string name="nav_passport">Passport</string>
+    <string name="mode_2d">2D Map</string>
+    <string name="mode_3d">3D Walk</string>
+    <string name="chat_with_local">Chat with Local</string>
+    <string name="instant_illustrate">Illustrate</string>
+    <string name="studio_hd_paint">HD Studio Paint</string>
+    <string name="save_to_phrasebook">Save Card</string>
+    <string name="sign_out">Sign out</string>
+    <string name="grammar_guide_title">Street Grammar Guide</string>
+    <string name="grammar_guide_subtitle">Essential grammar patterns drawn directly from local conversations in Paris, Tokyo, and Madrid</string>
+    <string name="open_in_grammar_guide">Open in Full Grammar Guide</string>
+    <string name="explain_with_gemini">Explain This Line in Context</string>
+</resources>

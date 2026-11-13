@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">ai-studio-android-streetli-72e67d06-68fa-4193-83fe-9a9b3e290374</string>
+    <string name="recaptcha_site_key" translatable="false">6LdUah0uAAAAAHyQ4q0stt-oUx5keY0jdP5cNfVh</string>
+</resources>
